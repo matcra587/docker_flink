@@ -1,0 +1,7 @@
+FROM flink:latest
+
+USER root
+
+RUN mkdir -p /opt/flink/nfs && chown -R flink:flink /opt/flink/nfs
+
+USER flink

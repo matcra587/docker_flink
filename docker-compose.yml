@@ -1,0 +1,84 @@
+version: '3'
+networks:
+  backend:
+
+volumes:
+  flink_data:
+
+services:
+  jobmanager:
+    build:
+      dockerfile: ./Dockerfile.flink
+    command: jobmanager
+    volumes:
+      - flink_data:/opt/flink/nfs:rw
+    networks:
+      - backend
+    ports:
+      - 8081:8081
+    environment:
+      - |
+        FLINK_PROPERTIES=
+        jobmanager.rpc.address: jobmanager
+        taskmanager.host: 0.0.0.0
+        jobmanager.bind-host: 0.0.0.0
+        rest.bind-address: 0.0.0.0
+        blob.server.port: 6124
+        query.server.port: 6125
+        high-availability.type: zookeeper
+        high-availability.storageDir: file:///opt/flink/nfs
+        high-availability.zookeeper.quorum: zookeeper-1:2181,zookeeper-2:2181,zookeeper-3:2181
+        high-availability.zookeeper.client.acl: open
+
+  taskmanager:
+    build:
+      dockerfile: ./Dockerfile.flink
+    command: taskmanager
+    volumes:
+      - flink_data:/opt/flink/nfs
+    networks:
+      - backend
+    depends_on:
+      - jobmanager
+    deploy:
+      mode: replicated
+      replicas: 2
+    environment:
+      - |
+        FLINK_PROPERTIES=
+        jobmanager.rpc.address: jobmanager
+        taskmanager.numberOfTaskSlots: 2
+        high-availability.type: zookeeper
+        high-availability.storageDir: file:///opt/flink/nfs
+        high-availability.zookeeper.quorum: zookeeper-1:2181,zookeeper-2:2181,zookeeper-3:2181
+        high-availability.zookeeper.client.acl: open
+
+  zookeeper-1:
+    image: zookeeper:latest
+    hostname: zookeeper-1
+    restart: always
+    environment:
+      ZOO_MY_ID: 1
+      ZOO_SERVERS: "server.1=zookeeper-1:2888:3888;2181 server.2=zookeeper-2:2888:3888;2181 server.3=zookeeper-3:2888:3888;2181"
+    networks:
+      - backend
+
+  zookeeper-2:
+    image: zookeeper:latest
+    hostname: zookeeper-2
+    restart: always
+    environment:
+      ZOO_MY_ID: 2
+      ZOO_SERVERS: "server.1=zookeeper-1:2888:3888;2181 server.2=zookeeper-2:2888:3888;2181 server.3=zookeeper-3:2888:3888;2181"
+    networks:
+      - backend
+
+  zookeeper-3:
+    image: zookeeper:latest
+    hostname: zookeeper-3
+    restart: always
+    environment:
+      ZOO_MY_ID: 3
+      ZOO_SERVERS: "server.1=zookeeper-1:2888:3888;2181 server.2=zookeeper-2:2888:3888;2181 server.3=zookeeper-3:2888:3888;2181"
+    networks:
+      - backend
